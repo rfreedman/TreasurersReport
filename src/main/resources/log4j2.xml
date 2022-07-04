@@ -6,7 +6,7 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.openjfx" level="INFO"/>
+        <Logger name="raio.n2ehl" level="INFO"/>
         <Root level="error">
             <AppenderRef ref="Console"/>
         </Root>
