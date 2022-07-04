@@ -1,4 +1,4 @@
-# directory names ending with / will be excluded from all IDEA modules (see ide.gradle)
+# directory names ending with / will be excluded from all IDEA modules (see ide.gradle)gi
 **/.DS_Store
 gradle-local.properties
 gpg/
