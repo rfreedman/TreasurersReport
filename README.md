@@ -1,10 +1,6 @@
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/beryx-gist/badass-jlink-example-log4j2-javafx/blob/master/LICENSE)
-[![Build Status](https://github.com/beryx-gist/badass-jlink-example-log4j2-javafx/workflows/Gradle%20Build/badge.svg)](https://github.com/beryx-gist/badass-jlink-example-log4j2-javafx/actions?query=workflow%3A%22Gradle+Build%22)
 
-## Badass JLink Plugin Example: log4j2 and JavaFX ##
 
-A small JavaFX application using log4j2 that shows how to use the [Badass JLink Plugin](https://github.com/beryx/badass-jlink-plugin/).
+A JavaFX application that Generates a "Treasurer's Report" from a CSV file of transactions exported from Quicken
 
 
 ### Usage
@@ -13,10 +9,14 @@ A small JavaFX application using log4j2 that shows how to use the [Badass JLink 
 ./gradlew run
 ```
 
-A window containing the text `HelloFX` should appear on the screen and the following text should be printed on the console:
-```
-[JavaFX Application Thread] INFO  org.openjfx.HelloFX - hellofx!
-```
+* In Quicken, reconcile all accounts for the previous month
+* From Quicken, export all transactions for the previous month to a CSV file
+* Run the application
+* Enter the previous month's starting and ending balances
+* Select the CSV file that you exported from Quicken
+* Click the "Generate Report" button to specify where to save the PDF file, and give it a name
+* Done!g
+
 
 
 **Creating and executing a custom runtime image:**
@@ -25,12 +25,6 @@ A window containing the text `HelloFX` should appear on the screen and the follo
 cd build/image/bin
 ./helloFX
 ```
-
-A window containing the text `HelloFX` should appear on the screen and the following text should be printed on the console:
-```
-[JavaFX Application Thread] INFO  org.openjfx.HelloFX - hellofx!
-```
-
 
 **Creating installable packages**
 ```
