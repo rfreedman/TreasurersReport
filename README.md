@@ -1,7 +1,10 @@
 
 
-A JavaFX application that Generates a "Treasurer's Report" from a CSV file of transactions exported from Quicken
+A JavaFX application that Generates a "Treasurer's Report" 
+from a CSV file of transactions exported from Quicken
 
+Can be "linked" to a small custom JRE to create a natively runnable application using jlink, 
+optionally with an installer using jpackage.
 
 ### Usage
 **Running with gradle:**
