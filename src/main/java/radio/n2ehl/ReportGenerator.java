@@ -5,17 +5,18 @@ import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.text.WordUtils;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ReportGenerator {
@@ -51,13 +52,7 @@ public class ReportGenerator {
         AtomicInteger processingRow = new AtomicInteger(-1);
 
         try {
-            /*
-            if (!processArgs(args)) {
-                return;
-            }
-             */
-
-            System.out.println("Parsing Quicken CSV");
+              System.out.println("Parsing Quicken CSV");
 
             CSVReader csvReader = new CSVReader(new FileReader(inputFilename));
             List<String[]> data = csvReader.readAll();
@@ -112,20 +107,7 @@ public class ReportGenerator {
             Path markdownPath = writeMarkdown();
             return markdownPath;
 
-            /*
-            if (createPdf) {
-                convertMarkdownToPdf();
-            }
-
-            if (createDocx) {
-                convertMarkdownToDocx();
-            }
-
-            if (!keepMarkdown) {
-                Files.delete(new File("report.md").toPath());
-            }
-             */
-        } catch(Exception ex) {
+           } catch(Exception ex) {
             System.err.println("Error while processing row " + processingRow.get());
             ex.printStackTrace();
             return null;
@@ -198,7 +180,8 @@ public class ReportGenerator {
     static Path writeMarkdown() throws Exception {
         System.out.println("Writing Intermediate Markdown file");
         StringBuilder buf = new StringBuilder();
-        writeMarkdownYamlHeader(buf);
+
+        // writeMarkdownYamlHeader(buf);
 
         final String reportPeriodString = getReportPeriodString();
 
@@ -206,7 +189,7 @@ public class ReportGenerator {
         .append(reportPeriodString)
         .append("\n")
         .append("\n")
-        .append("The beginning balance for ")
+        .append("<p>The beginning balance for ")
         .append(getReportPeriodString())
         .append(" was $")
         .append(startingBalance)
@@ -219,40 +202,43 @@ public class ReportGenerator {
         .append(netTotal.compareTo(BigDecimal.ZERO) >= 0 ? "increase" : "decrease")
         .append(" of $")
         .append(netTotal.abs())
-        .append("\n<p>&nbsp;</p>\n")
-        .append("| **Cash Flow for ").append(reportPeriodString).append("** | | \n")
-        .append("| :--------------- | --------------: |\n")
+        .append("</p>\n\n")
+        .append("<p><br/></p>\n\n")
+        .append("| **Cash Flow for ").append(reportPeriodString).append("** || \n")
+        .append("| :--- | ---: |\n")
         .append("| Starting Balance | ").append(startingBalance).append("|\n")
         .append("| Ending Balance | ").append(endingBalance).append("|\n")
-        .append("| | |\n")
+        .append("| <br/> | <br/> |\n")
         .append("| Total Income | ").append(totalInflows).append("|\n")
         .append("| Total Expenses | ").append(totalOutflows).append("|\n")
-        .append("| | |\n")
+        .append("| <br/> | <br/> |\n")
         .append("| Net Change | ").append(netTotal).append("|\n")
-        .append("\n\n<p>&nbsp;</p>\n\n");
+        .append("\n\n<p></p>\n\n");
 
 
         appendCreditCategoriesMarkdown(buf);
-        buf.append("\n\n<p>&nbsp;</p>\n\n");
+        buf.append("\n\n<p></p>\n\n");
         appendExpenseCategoriesMarkdown(buf);
-        buf.append("\n\n<p>&nbsp;</p>\n\n");
-        buf.append("\n\n<p>*Respectfully Submitted by Rich Freedman N2EHL, Treasurer*</p>\n\n");
+        buf.append("\n\n<p></p>\n\n");
+        buf.append("\n\n<p><i>Respectfully Submitted by Rich Freedman N2EHL, Treasurer</i></p>\n\n");
 
-        Path tempFilePath = Files.createTempFile("temp-treasurer-report", ".md");
+        FileAttribute<Set<PosixFilePermission>> rwx = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx"));
+        // Path tempFilePath = Files.createTempFile("temp-treasurer-report", ".md", rwx);
+        String userHomeDir = System.getProperty("user.home");
+        Path tempFilePath = new File(userHomeDir, "temp-treasurer-report.md").toPath();
         Files.write(tempFilePath, buf.toString().getBytes(StandardCharsets.UTF_8));
         return tempFilePath;
     }
 
     static void appendCreditCategoriesMarkdown(final StringBuilder buf) {
-        buf.append("**Income By Category**\n\n")
+        buf.append("<br/><br/>**Income By Category**\n\n")
                 .append("| **Category** | **Subcategory** | **Amount** | **Category Total** |\n")
                 .append("| :--- | :--- | ---: | ---: |\n");
-
         creditCategories.forEach((categoryName, category) -> {
-            buf.append("| ").append(categoryName).append(" | | | ").append(category.total).append(" |\n");
+            buf.append("| ").append(categoryName).append(" |  |  |  ").append(category.total).append(" |\n");
 
             category.subcategories.forEach(((subcategoryName, subcategory) ->
-                    buf.append("| | ").append(subcategoryName).append("  | ").append(subcategory.total).append(" | |\n")
+                    buf.append("|  | ").append(subcategoryName).append("  | ").append(subcategory.total).append(" |  |\n")
             ));
         });
 
@@ -261,20 +247,20 @@ public class ReportGenerator {
                 .map(Category::getTotal)
                 .reduce((x, y) -> x.add(y)).get();
 
-        buf.append("| | | | |\n");
-        buf.append("| ").append("**TOTAL**").append(" | | | **").append(totalCredits).append("** |\n");
+        buf.append("|||||\n");
+        buf.append("|").append("**TOTAL**").append("||| **").append(totalCredits).append("** |\n");
     }
 
     static void appendExpenseCategoriesMarkdown(final StringBuilder buf) {
-        buf.append("**Expenses By Category**\n\n")
+        buf.append("<br/><br/>**Expenses By Category**\n\n")
                 .append("| **Category** | **Subcategory** | **Amount** | **Category Total** |\n")
                 .append("| :--- | :--- | ---: | ---: |\n");
 
         debitCategories.forEach((categoryName, category) -> {
-            buf.append("| ").append(categoryName).append(" | | | ").append(category.total).append(" |\n");
+            buf.append("| ").append(categoryName).append(" |  |  | ").append(category.total).append(" |\n");
 
             category.subcategories.forEach(((subcategoryName, subcategory) ->
-                    buf.append("| | ").append(subcategoryName).append("  | ").append(subcategory.total).append(" | |\n")
+                    buf.append("|  | ").append(subcategoryName).append("  | ").append(subcategory.total).append(" | |\n")
             ));
 
             buf.append("|||||\n|||||\n");
@@ -285,11 +271,13 @@ public class ReportGenerator {
                 .map(Category::getTotal)
                 .reduce((x, y) -> x.add(y)).get();
 
-        buf.append("| | | | |\n");
-        buf.append("| ").append("**TOTAL**").append(" | | | **").append(totalCredits).append("** |\n");
+        buf.append("|||||\n");
+        buf.append("|||||\n");
+        buf.append("|").append("**TOTAL**").append(" ||| **").append(totalCredits).append("**|\n");
     }
 
     static void convertMarkdownToPdf() {
+        /*
         System.out.println("Converting Markdown to PDF");
         try {
             Process process = new ProcessBuilder()
@@ -301,6 +289,7 @@ public class ReportGenerator {
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
+         */
     }
 
     static void convertMarkdownToDocx() {
@@ -375,110 +364,6 @@ public class ReportGenerator {
                 Integer.parseInt(dateParts[1])
         );
     }
-
-    /*
-    static boolean processArgs(final String[] args) {
-        Options options = new Options();
-        options.addOption(
-                Option.builder("i")
-                        .longOpt("input")
-                        .hasArg()
-                        .numberOfArgs(1)
-                        .required()
-                        .desc("input file - Quicken CSV export file name (required)")
-                        .build()
-        );
-
-        options.addOption(
-                Option.builder("s")
-                        .longOpt("starting-balance")
-                        .hasArg()
-                        .numberOfArgs(1)
-                        .required()
-                        .desc("starting balance (required)")
-                        .build()
-        );
-
-        options.addOption(
-                Option.builder("e")
-                        .longOpt("ending-balance")
-                        .hasArg()
-                        .numberOfArgs(1)
-                        .required()
-                        .desc("ending balance (required)")
-                        .build()
-        );
-
-        options.addOption(
-                Option.builder("pdf")
-                        .longOpt("write-pdf")
-                        .hasArg(false)
-                        .desc("write pdf file (default: true)")
-                        .build()
-        );
-
-        options.addOption(
-                Option.builder("docx")
-                        .longOpt("write-docx")
-                        .hasArg(false)
-                        .desc("write  MS Word (docx) file (default: false)")
-                        .build()
-        );
-
-        options.addOption(
-                Option.builder("md")
-                        .longOpt("keep-md")
-                        .hasArg(false)
-                        .desc("preserve intermediate Markdown file (default: false)")
-                        .build()
-        );
-
-        CommandLine cmd;
-
-        try {
-            CommandLineParser parser = new DefaultParser();
-            cmd = parser.parse(options, args);
-
-            if(cmd.hasOption("i")) {
-                inputFilename = cmd.getOptionValue("i");
-            }
-
-            if(cmd.hasOption("s")) {
-                startingBalance = new BigDecimal(cmd.getOptionValue("s"));
-            }
-
-            if(cmd.hasOption("e")) {
-                endingBalance = new BigDecimal(cmd.getOptionValue("e"));
-            }
-
-            if(cmd.hasOption("pdf")) {
-                createPdf = true;
-            }
-
-            if(cmd.hasOption("docx")) {
-                createDocx = true;
-            }
-
-            if(cmd.hasOption("md")) {
-                keepMarkdown = true;
-            }
-
-        } catch(Exception ex) {
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp( "quicken-treasurer-report <options>", options );
-            return false;
-        }
-
-        System.out.printf("input file: %s\n", inputFilename);
-        System.out.println("startingBalance " + startingBalance);
-        System.out.println("endingBalance " + endingBalance);
-        System.out.println("createPdf " + createPdf);
-        System.out.println("createDocx " + createDocx);
-        System.out.println("keepMarkdown " + keepMarkdown);
-
-        return true;
-    }
-     */
 
     @Data
     @Builder
