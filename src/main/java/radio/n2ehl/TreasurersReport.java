@@ -16,17 +16,12 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 public class TreasurersReport extends Application {
 
@@ -40,8 +35,6 @@ public class TreasurersReport extends Application {
     FileChooser fileChooser;
     Stage stage;
     File outputPdfFile;
-
-    String pandocPath = "";
 
     @Override
     public void start(Stage stage) {
@@ -114,25 +107,12 @@ public class TreasurersReport extends Application {
 
         rowIndex += 10;
         GridPane.setHalignment(btnSaveButton, HPos.CENTER);
-        grid.add(btnSaveButton, 0, 7, 2, rowIndex++);
+        grid.add(btnSaveButton, 0, 7, 2, rowIndex);
         btnSaveButton.setDisable(true);
 
         Scene scene = new Scene(grid, 600, 450);
         stage.setScene(scene);
         stage.show();
-
-        /*
-        try {
-            if (!checkPandocInstallation()) {
-                showError("Pandoc is required to produce the report,\n but was not found on path or at any other known location");
-                System.exit(-1);
-            }
-        } catch (IOException ex) {
-            showError("IOException while attempting to check for pandoc installation");
-            System.exit(-1);
-
-        }
-         */
     }
 
     private void showError(String errorString) {
@@ -144,126 +124,36 @@ public class TreasurersReport extends Application {
         alert.showAndWait();
     }
 
-    /*
-    private boolean panDocInstalled() {
-        showError(System.getenv().get("PATH"));
-
-        // ProcessBuilder builder = new ProcessBuilder("/usr/local/bin/pandoc", "-v").inheritIO();
-        ProcessBuilder builder = new ProcessBuilder("pandoc", "-v").inheritIO();
-
-        try {
-            final Process process = builder.start();
-            boolean result = process.waitFor(10, TimeUnit.SECONDS);
-            if(!result) {
-                return false; // timed out
-            }
-            int exitValue = process.exitValue();
-            return exitValue == 0;
-        } catch (IOException | InterruptedException ex) {
-            LogManager.getLogger().error("failed to exec pandoc", ex);
-            return false;
-        }
-    }
-     */
-
-    private boolean checkPandocInstallation() throws IOException {
-        /*
-        // on the PATH
-        if(tryPandocOnPath("pandoc")) {
-            pandocPath = "pandoc";
-            return true;
-        }
-         */
-
-        // /usr/local/bin is a candidate, but not in the environment's PATH
-        if (tryPandocOnPath("/usr/local/bin/pandoc")) {
-            pandocPath = "/usr/local/bin/pandoc";
-            return true;
-        }
-
-        return false;
-    }
-
-    // path must either be blank (to use the system path)
-    // or end in a slash (to find pandoc at that path)
-    private boolean tryPandocOnPath(String path) throws IOException {
-
-        /*
-        ProcessBuilder builder = new ProcessBuilder(path, "-v").inheritIO();
-
-        try {
-            final Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes());
-
-            boolean result = process.waitFor(10, TimeUnit.SECONDS);
-
-            showError("execution of " + pandocPath + " got exit value " + process.exitValue());
-            showError("Output:\n" + output);
-
-            return process.exitValue() == 0;
-
-        } catch (IOException  | InterruptedException ex) {
-            LogManager.getLogger().error("failed to exec pandoc", ex);
-            return false;
-        }
-         */
-
-        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        PumpStreamHandler psh = new PumpStreamHandler(stdout);
-        CommandLine cl = CommandLine.parse(path + " -v");
-        DefaultExecutor exec = new DefaultExecutor();
-        exec.setStreamHandler(psh);
-        int exitCode = exec.execute(cl);
-        showError(stdout.toString());
-        return exitCode == 0;
-    }
-
-
-
-
     void onChange() {
-        if(fldStartBal.getValue() != null &&
-           fldEndBal.getValue() != null &&
-           inputCSVFile != null
-        ) {
-            btnSaveButton.setDisable(false);
-        } else {
-            btnSaveButton.setDisable(true);
-        }
+        btnSaveButton.setDisable(fldStartBal.getValue() == null ||
+                fldEndBal.getValue() == null ||
+                inputCSVFile == null);
     }
 
 
-    private EventHandler getInputFileEventHandler() {
-        final EventHandler<ActionEvent> eventHandler =
-                new EventHandler<>() {
-                    public void handle(ActionEvent e) {
-                        File file = fileChooser.showOpenDialog(stage);
-                        setInputCSVFile(file);
-                        onChange();
-                    }
-                };
-        return eventHandler;
+    private EventHandler<ActionEvent> getInputFileEventHandler() {
+        return e -> {
+            File file = fileChooser.showOpenDialog(stage);
+            setInputCSVFile(file);
+            onChange();
+        };
     }
 
-    private EventHandler getOutputFileEventHandler() {
-        final EventHandler<ActionEvent> eventHandler =
-                new EventHandler<>() {
-                    public void handle(ActionEvent e) {
+    private EventHandler<ActionEvent> getOutputFileEventHandler() {
+        return e -> {
 
-                        final FileChooser outputFileChooser = new FileChooser();
-                        outputFileChooser.setTitle("Select Quicken CSV export file");
-                        outputFileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files", "*.pdf"));
-                        File outputFile = outputFileChooser.showSaveDialog(stage);
+            final FileChooser outputFileChooser = new FileChooser();
+            outputFileChooser.setTitle("Select Quicken CSV export file");
+            outputFileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files", "*.pdf"));
+            File outputFile = outputFileChooser.showSaveDialog(stage);
 
-                        if(outputFile != null) {
-                            outputPdfFile = outputFile;
-                            generateReport(outputFile.getAbsolutePath());
-                        }
+            if(outputFile != null) {
+                outputPdfFile = outputFile;
+                generateReport(outputFile.getAbsolutePath());
+            }
 
 
-                    }
-                };
-        return eventHandler;
+        };
     }
 
     private void setInputCSVFile(File file) {
@@ -307,63 +197,8 @@ public class TreasurersReport extends Application {
     }
 
     private boolean convertMarkdownToPDF(File markdownFile, File outputPdfFile) throws IOException {
-        /*
-        try {
-            Process process = new ProcessBuilder()
-                    .inheritIO()
-                    .command(pandocPath, "--pdf-engine", "xelatex", "-s", "-o", outputPdfFile.getAbsolutePath(), markdownFile.getAbsolutePath())
-                    .start();
-            List<String> results = readOutput(process.getInputStream());
-
-            process.waitFor();
-            if(process.exitValue() == 0) {
-                showError("it worked?");
-                return true;
-            } else {
-                showError("execution of " + pandocPath + " got exit value " + process.exitValue());
-
-                StringBuilder sb = new StringBuilder();
-                String sep = "\n";
-                for(String s: results) {
-                    sb.append(sep).append(s);
-                }
-                showError(sb.toString());
-
-            }
-        } catch (IOException | InterruptedException e) {
-            // LogManager.getLogger().error("failed to convert markdown to pdf", e);
-            showError("failed to convert to pdf " + e.getMessage());
-            return false;
-        }
-
-        return true;
-         */
-
-        /*
-        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        PumpStreamHandler psh = new PumpStreamHandler(stdout);
-        CommandLine cl = CommandLine.parse(pandocPath + " --pdf-engine=xelatex --verbose --log=/Users/rfreedman/pandoc.log  -s  --output=" +  outputPdfFile.getAbsolutePath() + " " +  markdownFile.getAbsolutePath());
-        showError(cl.toString());
-        DefaultExecutor exec = new DefaultExecutor();
-        exec.setExitValue(0);
-        exec.setStreamHandler(psh);
-        int exitCode = exec.execute(cl);
-        showError(stdout.toString());
-        return exitCode == 0;
-         */
-
-
         MarkdownToPdfConverter.convertMarkdownToPdf(markdownFile.toPath(), outputPdfFile.toPath());
         return true;
-    }
-
-    private List<String> readOutput(InputStream inputStream) throws IOException {
-        List<String> results = new ArrayList<>();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-        while(reader.ready()) {
-            results.add(reader.readLine());
-        }
-        return results;
     }
 
     public static void main(String[] args) {

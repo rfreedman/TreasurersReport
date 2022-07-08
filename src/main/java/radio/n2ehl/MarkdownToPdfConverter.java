@@ -1,10 +1,5 @@
 package radio.n2ehl;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-
 import com.vladsch.flexmark.ext.toc.TocExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
@@ -13,11 +8,11 @@ import com.vladsch.flexmark.profile.pegdown.Extensions;
 import com.vladsch.flexmark.profile.pegdown.PegdownOptionsAdapter;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.DataHolder;
-
-import com.vladsch.flexmark.util.data.MutableDataSet;
 import com.vladsch.flexmark.util.misc.Extension;
 
-import com.vladsch.flexmark.parser.PegdownExtensions;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 
 public class MarkdownToPdfConverter {
@@ -39,56 +34,58 @@ public class MarkdownToPdfConverter {
         final String html = htmlRenderer.render(document);
 
         final String css =
-                """
-                            * {
-                               font-family: Consolas, sans-serif, sans-serif !important;
-                            }
-                    
-                            html {
-                                padding-left: 60px;
-                                padding-right: 60px;
-                            }
-                    
-                            p {
-                                font-size: 0.8em;
-                                font-weight: 200;
-                            }
-                            
-                            h1 {
-                                font-size: 1.3em;
-                            }
-                    
-                            table {
-                               border-spacing: 0 !important;
-                               border-bottom: 2px solid black;
-                               font-size: 0.8em;
-                               font-weight: 300;
-                            }
-                    
-                            table thead tr th  {
-                                border-top: 2px solid #000000 !important;
-                                border-bottom: 2px solid #000000 !important;
-                                padding-left: 20px !important;
-                                white-space: nowrap; 
-                            }
-                    
-                            table thead tr th:first-child {
-                                padding-left: 0 !important;
-                            }
-                    
-                            table tbody tr td  {
-                                padding-left: 20px !important;   
-                                white-space: nowrap;                   
-                            }
-                            
-                            table tbody tr td:first-child  {
-                                padding-left: 0 !important;
-                            }
-                            
-                            td:empty:after {
-                                content: "\00a0";
-                            }
-                            """;
+                """   
+                        @import url('http://fonts.cdnfonts.com/css/roboto-mono');
+                                                   
+                        * {
+                           font-family: 'Roboto Mono', mono, sans-serif;
+                        }
+                                        
+                        html {
+                            padding-left: 60px;
+                            padding-right: 60px;
+                        }
+                                        
+                        p {
+                            font-size: 0.8em;
+                            font-weight: 200;
+                        }
+                                                    
+                        h1 {
+                            font-size: 1.3em;
+                        }
+                                        
+                        table {
+                           border-spacing: 0 !important;
+                           border-bottom: 2px solid black;
+                           font-size: 0.8em;
+                           font-weight: 300;
+                        }
+                                        
+                        table thead tr th  {
+                            border-top: 2px solid #000000 !important;
+                            border-bottom: 2px solid #000000 !important;
+                            padding-left: 20px !important;
+                            white-space: nowrap; 
+                        }
+                                        
+                        table thead tr th:first-child {
+                            padding-left: 0 !important;
+                        }
+                                        
+                        table tbody tr td  {
+                            padding-left: 20px !important;   
+                            white-space: nowrap;                   
+                        }
+                                                    
+                        table tbody tr td:first-child  {
+                            padding-left: 0 !important;
+                        }
+                                                    
+                        td:empty:after {
+                            content: "\00a0";
+                        }
+                        """;
 
 
 

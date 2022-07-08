@@ -9,12 +9,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,15 +39,14 @@ public class ReportGenerator {
     static Map<String, Category> creditCategories = new HashMap<>();
     static Map<String, Category> debitCategories = new HashMap<>();
 
-    // command-line options, with default values
-    static boolean createPdf = true;
-    static boolean createDocx = false;
-    static boolean keepMarkdown = false;
+    static String submittedLine = null;
 
     public static Path generateMarkdown(String inputFilenameParm, BigDecimal startingBalanceParm, BigDecimal endingBalanceParm)  {
         inputFilename = inputFilenameParm;
         startingBalance = startingBalanceParm;
         endingBalance = endingBalanceParm;
+
+        readConfig();
 
         AtomicInteger processingRow = new AtomicInteger(-1);
 
@@ -60,9 +59,9 @@ public class ReportGenerator {
 
             data.forEach(row -> {
 
-                //noinspection ConstantConditions
                 processingRow.incrementAndGet();
 
+                //noinspection ConstantConditions
                 do {
                     if(row.length > COL_CATEGORY &&  row[COL_CATEGORY].contains("Transfer:")) {
                         break; // ignore transfers
@@ -104,14 +103,36 @@ public class ReportGenerator {
 
             createCategories();
             calculateTotals();
-            Path markdownPath = writeMarkdown();
-            return markdownPath;
+            return writeMarkdown();
 
            } catch(Exception ex) {
             System.err.println("Error while processing row " + processingRow.get());
             ex.printStackTrace();
             return null;
         }
+    }
+
+    static void readConfig() {
+        final String userHome = System.getProperty("user.home");
+        if(userHome != null) {
+            try {
+                final List<String> configLines = Files.readAllLines(Path.of(userHome, ".treasurer-report"));
+                for(String line : configLines) {
+                    if(line.trim().startsWith("#")) {
+                        continue;
+                    }
+                    if(line.trim().startsWith("submitted_line")) {
+                        final String[] pieces = line.trim().split("=");
+                        if(pieces.length == 2) {
+                            submittedLine = pieces[1];
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+
     }
 
     static boolean isDate(final String str) {
@@ -163,27 +184,10 @@ public class ReportGenerator {
         netTotal = totalInflows.add(totalOutflows);
     }
 
-    static void writeMarkdownYamlHeader(final StringBuilder sb) {
-        sb.append("---\n")
-        .append("author: Rich Freedman N2EHL\n")
-        .append("mainfont: Consolas\n")
-        .append("geometry: margin=2cm\n")
-        .append("header-includes:\n")
-        .append("  - |\n")
-        .append("    ```{=latex}\n")
-        .append("    \\usepackage[margins=raggedright]{floatrow}\n")
-        .append("    ```\n")
-        .append("---\n")
-        ;
-    }
-
     static Path writeMarkdown() throws Exception {
-        System.out.println("Writing Intermediate Markdown file");
-        StringBuilder buf = new StringBuilder();
-
-        // writeMarkdownYamlHeader(buf);
-
         final String reportPeriodString = getReportPeriodString();
+
+        StringBuilder buf = new StringBuilder();
 
         buf.append("# DVRA Treasurer's Report for ")
         .append(reportPeriodString)
@@ -191,23 +195,23 @@ public class ReportGenerator {
         .append("\n")
         .append("<p>The beginning balance for ")
         .append(getReportPeriodString())
-        .append(" was $")
-        .append(startingBalance)
+        .append(" was ")
+        .append(NumberFormat.getCurrencyInstance().format(startingBalance))
         .append("\n\n\n")
         .append("The ending balance for ")
         .append(getReportPeriodString())
-        .append(" was $")
-        .append(endingBalance)
+        .append(" was ")
+        .append(NumberFormat.getCurrencyInstance().format(endingBalance)) //endingBalance.setScale(2).toPlainString())
         .append(", a net ")
         .append(netTotal.compareTo(BigDecimal.ZERO) >= 0 ? "increase" : "decrease")
-        .append(" of $")
-        .append(netTotal.abs())
+        .append(" of ")
+        .append(NumberFormat.getCurrencyInstance().format(netTotal.abs()))
         .append("</p>\n\n")
         .append("<p><br/></p>\n\n")
         .append("| **Cash Flow for ").append(reportPeriodString).append("** || \n")
         .append("| :--- | ---: |\n")
-        .append("| Starting Balance | ").append(startingBalance).append("|\n")
-        .append("| Ending Balance | ").append(endingBalance).append("|\n")
+        .append("| Starting Balance | ").append(NumberFormat.getCurrencyInstance().format(startingBalance)).append("|\n")
+        .append("| Ending Balance | ").append(NumberFormat.getCurrencyInstance().format(endingBalance)).append("|\n")
         .append("| <br/> | <br/> |\n")
         .append("| Total Income | ").append(totalInflows).append("|\n")
         .append("| Total Expenses | ").append(totalOutflows).append("|\n")
@@ -215,18 +219,19 @@ public class ReportGenerator {
         .append("| Net Change | ").append(netTotal).append("|\n")
         .append("\n\n<p></p>\n\n");
 
-
         appendCreditCategoriesMarkdown(buf);
+
         buf.append("\n\n<p></p>\n\n");
         appendExpenseCategoriesMarkdown(buf);
         buf.append("\n\n<p></p>\n\n");
-        buf.append("\n\n<p><i>Respectfully Submitted by Rich Freedman N2EHL, Treasurer</i></p>\n\n");
+        // buf.append("\n\n<p><i>Respectfully Submitted by Rich Freedman N2EHL, Treasurer</i></p>\n\n");
+        if(submittedLine != null) {
+            buf.append("\n\n<p><i>" + submittedLine + "</i></p>\n\n");
+        }
 
         FileAttribute<Set<PosixFilePermission>> rwx = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx"));
-        // Path tempFilePath = Files.createTempFile("temp-treasurer-report", ".md", rwx);
-        String userHomeDir = System.getProperty("user.home");
-        Path tempFilePath = new File(userHomeDir, "temp-treasurer-report.md").toPath();
-        Files.write(tempFilePath, buf.toString().getBytes(StandardCharsets.UTF_8));
+        Path tempFilePath = Files.createTempFile("temp-treasurer-report", ".md", rwx);
+        Files.writeString(tempFilePath, buf.toString());
         return tempFilePath;
     }
 
@@ -234,6 +239,7 @@ public class ReportGenerator {
         buf.append("<br/><br/>**Income By Category**\n\n")
                 .append("| **Category** | **Subcategory** | **Amount** | **Category Total** |\n")
                 .append("| :--- | :--- | ---: | ---: |\n");
+
         creditCategories.forEach((categoryName, category) -> {
             buf.append("| ").append(categoryName).append(" |  |  |  ").append(category.total).append(" |\n");
 
@@ -245,7 +251,7 @@ public class ReportGenerator {
         BigDecimal totalCredits = creditCategories.values()
                 .stream()
                 .map(Category::getTotal)
-                .reduce((x, y) -> x.add(y)).get();
+                .reduce(BigDecimal::add).orElse(BigDecimal.ZERO);
 
         buf.append("|||||\n");
         buf.append("|").append("**TOTAL**").append("||| **").append(totalCredits).append("** |\n");
@@ -269,41 +275,11 @@ public class ReportGenerator {
         BigDecimal totalCredits = debitCategories.values()
                 .stream()
                 .map(Category::getTotal)
-                .reduce((x, y) -> x.add(y)).get();
+                .reduce(BigDecimal::add).orElse(BigDecimal.ZERO);
 
         buf.append("|||||\n");
         buf.append("|||||\n");
         buf.append("|").append("**TOTAL**").append(" ||| **").append(totalCredits).append("**|\n");
-    }
-
-    static void convertMarkdownToPdf() {
-        /*
-        System.out.println("Converting Markdown to PDF");
-        try {
-            Process process = new ProcessBuilder()
-                    .inheritIO()
-                    .command("pandoc", "--pdf-engine", "xelatex", "-s", "-o", getOutputFilenameRoot() + ".pdf", "report.md")
-                    .start();
-            process.waitFor();
-            System.out.println("Done!");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-         */
-    }
-
-    static void convertMarkdownToDocx() {
-        System.out.println("Converting Markdown to Docx");
-        try {
-            Process process = new ProcessBuilder()
-                    .inheritIO()
-                    .command("pandoc", "-f", "markdown", "-t", "docx", "-o", getOutputFilenameRoot() + ".docx", "report.md")
-                    .start();
-            process.waitFor();
-            System.out.println("Done!");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     static String getReportPeriodString() {
@@ -314,42 +290,6 @@ public class ReportGenerator {
         try {
             LocalDate transactionDate = transactions.get(0).transactionDate;
             return WordUtils.capitalizeFully(transactionDate.getMonth().name()) + " " + transactionDate.getYear();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return "????";
-        }
-    }
-
-    static String getOutputFilenameRoot() {
-        if (transactions == null || transactions.isEmpty()) {
-            return "Treasurers_Report_No_Transactions";
-        }
-
-        try {
-            final LocalDate transactionDate = transactions.get(0).transactionDate;
-
-            StringBuilder buf = new StringBuilder("DVRA_Treasurer_Report-")
-                    .append(transactionDate.getYear());
-
-            if(transactionDate.getMonthValue() < 10) {
-                buf.append("0");
-            }
-            buf.append(transactionDate.getMonthValue());
-            return buf.toString();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return "????";
-        }
-    }
-
-    static String getPreviousReportPeriodString() {
-        if (transactions == null || transactions.isEmpty()) {
-            return "???";
-        }
-
-        try {
-            final LocalDate transactionDate = transactions.get(0).transactionDate;
-            return WordUtils.capitalizeFully(transactionDate.minusMonths(1).getMonth().name()) + " " + transactionDate.getYear();
         } catch (Exception ex) {
             ex.printStackTrace();
             return "????";
